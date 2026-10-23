@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="icon.png" alt="Taiwan Work and School Suspension Logo" width="140">
 </p>
 
@@ -65,7 +65,7 @@ flowchart TD
 
 1. **Select county/city** from the dropdown.
 2. **Select district**:
-   - **整個縣市 (whole county/city)**: use the county-wide announcement (see evaluation logic below).
+   - whole county/city: use the county-wide announcement (see evaluation logic below).
    - A specific district: only that district's announcement is used.
 3. **Manual entry (fallback)**: if the NLSC list cannot be loaded, the error is shown and you can type the names manually. Names must match the DGPA page; district may be empty.
 
