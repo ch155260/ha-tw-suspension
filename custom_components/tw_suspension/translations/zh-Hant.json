@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "選擇縣市",
+        "data": { "city": "縣市" }
+      },
+      "district": {
+        "title": "選擇行政區",
+        "description": "{city}：選「整個縣市」會看縣市整體公告；選特定行政區則只看該區。",
+        "data": { "district": "行政區" }
+      },
+      "manual": {
+        "title": "手動輸入地點",
+        "description": "無法從政府資料取得清單（{error}），請手動輸入，名稱需與 DGPA 網頁一致。行政區可留空。",
+        "data": { "city": "縣市", "district": "行政區" }
+      }
+    },
+    "abort": { "already_configured": "此地點已設定過" }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "更新設定",
+        "data": {
+          "scan_interval": "更新間隔（分鐘）",
+          "verify_ssl": "驗證 SSL 憑證（預設關閉）"
+        },
+        "data_description": {
+          "verify_ssl": "若 DGPA 網站憑證造成連線失敗，可關閉此選項。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "suspension": { "name": "停班停課" }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select county/city",
+        "data": { "city": "County/City" }
+      },
+      "district": {
+        "title": "Select district",
+        "description": "{city}: choose the whole county/city or a single district.",
+        "data": { "district": "District" }
+      },
+      "manual": {
+        "title": "Enter location manually",
+        "description": "The government list could not be loaded ({error}). Names must match the DGPA page. District may be empty.",
+        "data": { "city": "County/City", "district": "District" }
+      }
+    },
+    "abort": { "already_configured": "This location is already configured" }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update settings",
+        "data": {
+          "scan_interval": "Update interval (minutes)",
+          "verify_ssl": "Verify SSL certificate (off by default)"
+        },
+        "data_description": {
+          "verify_ssl": "Turn off if the DGPA certificate causes connection failures."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "suspension": { "name": "Work/class suspension" }
+    }
+  }
+}
