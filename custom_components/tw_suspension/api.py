@@ -1,4 +1,4 @@
-"""HTTP clients for DGPA and NLSC."""
+"""DGPA 與國土測繪中心 (NLSC) 的 HTTP 客戶端模組。"""
 from __future__ import annotations
 
 import asyncio
@@ -26,11 +26,11 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (HomeAssistant tw_suspension)"}
 
 
 class DgpaError(Exception):
-    """DGPA page could not be fetched or parsed."""
+    """DGPA 網頁無法連線或解析失敗時拋出的例外。"""
 
 
 class NlscError(Exception):
-    """NLSC code service could not be fetched or parsed."""
+    """國土測繪中心代碼服務無法連線或解析失敗時拋出的例外。"""
 
 
 def _decode(raw: bytes) -> str:
@@ -41,7 +41,7 @@ def _decode(raw: bytes) -> str:
 
 
 class DgpaClient:
-    """Fetches the DGPA page, with a short cache shared by all entries."""
+    """抓取 DGPA 網頁客戶端，提供跨條目共用的短期快取機制。"""
 
     def __init__(self, hass: HomeAssistant, verify_ssl: bool) -> None:
         self._hass = hass
@@ -67,7 +67,8 @@ class DgpaClient:
                 _LOGGER.warning("無法連線 DGPA 網頁: %r", err)
                 raise DgpaError(f"無法連線 DGPA 網頁: {err!r}") from err
             data = await self._hass.async_add_executor_job(parse_page, html)
-            if not data:
+            # 平常日只有「無停班停課訊息」，屬於正常狀態；兩者都沒有才是格式變更
+            if not data["cities"] and not data["no_announcement"]:
                 raise DgpaError("解析不到任何縣市資料，網頁格式可能已變更")
             self._cache, self._ts = data, time.monotonic()
             return data

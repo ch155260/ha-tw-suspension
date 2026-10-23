@@ -34,7 +34,8 @@
   },
   "entity": {
     "binary_sensor": {
-      "suspension": { "name": "Work/class suspension" }
+      "today": { "name": "Work/class suspension today" },
+      "tomorrow": { "name": "Work/class suspension tomorrow" }
     }
   }
 }

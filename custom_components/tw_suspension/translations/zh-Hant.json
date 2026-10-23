@@ -34,7 +34,8 @@
   },
   "entity": {
     "binary_sensor": {
-      "suspension": { "name": "停班停課" }
+      "today": { "name": "今天停班停課" },
+      "tomorrow": { "name": "明天停班停課" }
     }
   }
 }

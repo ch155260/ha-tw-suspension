@@ -15,18 +15,20 @@ Scrapes the latest announcements from the **Directorate-General of Personnel Adm
 | Platform | `binary_sensor` |
 | Minimum HA version | 2024.11.0 |
 | Requirements | `beautifulsoup4>=4.12.0` (installed automatically by HA) |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 
 ---
 
 ## Features
 
-- **One sensor per location**: monitor a whole county/city or a specific district.
+- **Two sensors per location**: monitor a whole county/city or a specific district with a "today" and a "tomorrow" binary sensor.
+- **Today / tomorrow split**: DGPA often lists "今天…" (today) and "明天…" (tomorrow) in the same cell ("X月X日" dates are also supported); each sentence is routed to the matching entity.
+- **Negation aware**: "未達停止上班及上課標準" (standard not reached) is never treated as a suspension.
 - **Dropdown location picker**: county/district lists are fetched live from the **NLSC (National Land Surveying and Mapping Center) code service API**; falls back to manual entry if the API fails.
 - **Smart matching**: `台` / `臺` spellings are unified automatically. If you pick a district but the announcement only covers the county level, it falls back to the county-wide or "其他地區" (other areas) announcement.
 - **Partial-time detection**: when the text contains words like 上午 / 下午 / 晚上 / 夜間 / 中午, `X 時` or `HH:MM`, the `partial` attribute is `true`.
 - **Shared cache**: all locations share one copy of the page (cached for 60 s) to avoid hammering the government site.
-- **Fault tolerant**: on a failed refresh the last known state is kept instead of turning `unavailable`.
+- **Fault tolerant**: on a failed refresh the last known state is kept (with `stale: true`); once the date has changed the old data is no longer trustworthy and the entities become `unavailable`.
 - **Configurable interval and SSL verification** via the integration options; the entry reloads automatically after changes.
 - **Bilingual UI**: built-in `zh-Hant` and `en` translations.
 
@@ -89,30 +91,48 @@ Saving the options reloads the entry automatically.
 
 ## Entities
 
-Each entry creates one device (type "service", manufacturer "行政院人事行政總處 (DGPA)") with one binary sensor.
+Each entry creates one device (type "service", manufacturer "行政院人事行政總處 (DGPA)") with two binary sensors.
 
-- **Entity name**: `Work/class suspension` (`停班停課` in Traditional Chinese UI)
-- **Entity ID example**: `binary_sensor.<title>_ting_ban_ting_ke` or `binary_sensor.<title>_work_class_suspension` depending on the UI language at creation time — check the entity list for the actual ID.
+| Entity name | Traditional Chinese UI | Day |
+| --- | --- | --- |
+| `Work/class suspension today` | `今天停班停課` | Today |
+| `Work/class suspension tomorrow` | `明天停班停課` | Tomorrow |
+
+- **Entity ID example**: `binary_sensor.<title>_jin_tian_ting_ban_ting_ke` / `binary_sensor.<title>_ming_tian_ting_ban_ting_ke`, or `..._work_class_suspension_today` / `..._tomorrow` depending on the UI language at creation time — check the entity list for the actual ID.
+- **Upgrading**: the "today" entity keeps the unique ID of the previous single entity, so existing entity IDs and automations keep working; "tomorrow" is a new entity.
 
 ### State
 
 | State | Condition | Icon |
 | --- | --- | --- |
 | `on` | `work_stopped` **or** `class_stopped` is `true` | `mdi:cloud-alert` |
-| `off` | Neither work nor class is suspended | `mdi:cloud` |
-| `unavailable` | Data has never been fetched successfully | — |
+| `off` | Neither work nor class is suspended, or nothing announced for that day (see `status`) | `mdi:cloud` |
+| `unavailable` | Data has never been fetched, or the last refresh failed and the data is not from today | — |
 
 ### Attributes
 
 | Attribute | Type | Description |
 | --- | --- | --- |
-| `work_stopped` | bool | Text contains "停止上班" (work suspended) |
-| `class_stopped` | bool | Text contains "停止上課" (class suspended) |
+| `status` | str | Evaluation result, see below |
+| `work_stopped` | bool | Work suspended on that day ("未達…標準" does not count) |
+| `class_stopped` | bool | Classes suspended on that day (including "停止上班及上課") |
 | `partial` | bool | Suspension applies only to part of the day (e.g. "下午停止上班"); in whole-county aggregate mode it is `true` whenever any district is suspended |
-| `raw` | str | The matched raw announcement text |
+| `raw` | str | The matched raw announcement text (only sentences for that day) |
+| `date` | str | The day this entity represents (`YYYY-MM-DD`) |
 | `city` | str | Configured county/city (normalized to `臺`) |
 | `district` | str | Configured district (empty string for whole county) |
 | `last_updated` | str | Last successful update time (ISO 8601 with timezone, seconds precision) |
+| `stale` | bool | The last refresh failed and old data is being shown |
+
+`status` values:
+
+| Value | Meaning | State |
+| --- | --- | --- |
+| `stopped` | Work or classes suspended (including "standard reached") | `on` |
+| `normal` | Business as usual, or standard not reached | `off` |
+| `not_listed` | The page has announcements, but not for this county/district | `off` |
+| `not_announced` | The county is listed, but nothing announced for this day yet | `off` |
+| `no_announcement` | DGPA shows "無停班停課訊息" (no suspensions anywhere) | `off` |
 
 ---
 
@@ -121,10 +141,10 @@ Each entry creates one device (type "service", manufacturer "行政院人事行�
 ```mermaid
 flowchart LR
     DGPA["DGPA page nds.html"] --> Client["DgpaClient shared 60s cache"]
-    Client --> Parser["parse_page to county map"]
-    Parser --> Eval["evaluate by county/district"]
-    Eval --> Coord["WorkClassCoordinator"]
-    Coord --> Sensor["binary_sensor"]
+    Client --> Parser["parse_page to county/scope/sentences"]
+    Parser --> Coord["WorkClassCoordinator"]
+    Coord --> Eval["evaluate by county/district/day"]
+    Eval --> Sensor["binary_sensor today/tomorrow"]
 ```
 
 ### 1. Fetching ([api.py](custom_components/tw_suspension/api.py))
@@ -132,24 +152,30 @@ flowchart LR
 - Fetches the DGPA page with `aiohttp`, 10 s timeout.
 - Decodes as UTF-8, falling back to Big5.
 - All entries share one `DgpaClient` (keyed by the `verify_ssl` setting), protected by a lock and a 60 s cache.
-- Fetch failures or an empty parse raise `DgpaError`, which the coordinator turns into `UpdateFailed`.
+- Fetch failures, or a page with neither counties nor "無停班停課訊息", raise `DgpaError`, which the coordinator turns into `UpdateFailed`.
 
 ### 2. Parsing ([parser.py](custom_components/tw_suspension/parser.py))
 
 - Converts the page to plain text and scans line by line, detecting lines that start with a county name (optionally prefixed by a region such as 北部地區). Parsing stops at footer text such as "備註" or "語音查詢電話".
-- Each county's announcement becomes one of:
-  - **String**: one statement for the whole county, e.g. `"今天停止上班、停止上課"`.
-  - **Dict**: per-district statements, e.g. `{"板橋區": "今天停止上班", "其他地區": "照常上班"}`.
+- The page date is read from the ROC-calendar header (e.g. "115年10月23日").
+- Each county becomes `{scope: [sentence, ...]}`; a scope equal to the county name means a county-wide statement, e.g.:
+  - `{"臺北市": ["今天停止上班、停止上課", "明天已達停止上班及上課標準"]}`
+  - `{"烏來區": ["今天停止上班"], "其他地區": ["今天照常上班"]}`
+- Each sentence is assigned to a day by its prefix: 今天/今日 (today), 明天/明日 (tomorrow) or "X月X日"; legacy sentences without a date count as the page date.
+- Negations such as "未達" never count as a suspension.
 
 ### 3. Evaluation logic (`evaluate`)
 
 | Case | Behaviour |
 | --- | --- |
-| County not on the page | Treated as normal (`off`) |
-| County announcement is a single string | Use it directly |
-| **District selected** | Look up in order: district → county-wide → "其他地區"; otherwise `off` |
+| Page shows "無停班停課訊息" | `no_announcement` (`off`) |
+| County not on the page | `not_listed` (`off`) |
+| County listed but no sentence for that day | `not_announced` (`off`) |
+| **District selected** | Use the first scope with a sentence for that day: district → county-wide → "其他地區" |
 | **Whole county**, county-wide statement exists | Use the county-wide statement |
 | **Whole county**, only per-district statements | Excluding "其他地區", `on` if **any** district is suspended; `partial` is `true` and `raw` lists all districts |
+
+Days are computed relative to the page date, so if DGPA has not rolled over after midnight, yesterday's "tomorrow" correctly maps to today. Entities are also re-evaluated at midnight.
 
 ### 4. County / district lists
 
@@ -161,30 +187,30 @@ flowchart LR
 
 ## Automation Examples
 
-### Push notification when suspension is announced
+### Push notification the evening before a suspension
 
 ```yaml
 automation:
-  - alias: Work/class suspension notification
+  - alias: Tomorrow work/class suspension notification
     trigger:
       - platform: state
-        entity_id: binary_sensor.xxx_ting_ban_ting_ke
+        entity_id: binary_sensor.xxx_ming_tian_ting_ban_ting_ke
         to: "on"
     action:
       - service: notify.mobile_app_your_phone
         data:
-          title: "Suspension announced"
+          title: "Suspension tomorrow"
           message: >
             {{ state_attr(trigger.entity_id, 'city') }}{{ state_attr(trigger.entity_id, 'district') }}:
             {{ state_attr(trigger.entity_id, 'raw') }}
 ```
 
-### Trigger only when classes are suspended
+### Trigger only when classes are suspended today
 
 ```yaml
 trigger:
   - platform: state
-    entity_id: binary_sensor.xxx_ting_ban_ting_ke
+    entity_id: binary_sensor.xxx_jin_tian_ting_ban_ting_ke
     attribute: class_stopped
     to: true
 ```
@@ -192,8 +218,8 @@ trigger:
 ### Template: full day vs. partial
 
 ```yaml
-{% if is_state('binary_sensor.xxx_ting_ban_ting_ke', 'on') %}
-  {{ 'Partial-day suspension' if state_attr('binary_sensor.xxx_ting_ban_ting_ke', 'partial') else 'Full-day suspension' }}
+{% if is_state('binary_sensor.xxx_jin_tian_ting_ban_ting_ke', 'on') %}
+  {{ 'Partial-day suspension' if state_attr('binary_sensor.xxx_jin_tian_ting_ban_ting_ke', 'partial') else 'Full-day suspension' }}
 {% else %}
   Normal
 {% endif %}
@@ -209,7 +235,9 @@ trigger:
 | Integration shows "Retrying setup" | First DGPA fetch failed; HA retries automatically. Ensure HA can reach `www.dgpa.gov.tw` |
 | Connection fails after enabling SSL verification | DGPA certificate issue — turn off "Verify SSL certificate" in options |
 | Log says "解析不到任何縣市資料" (no county data parsed) | The DGPA page layout may have changed — please open an issue |
-| State is always `off` and `raw` is empty | Expected: when there is no disaster, the page has no entry for the county |
+| State is always `off` with `status: no_announcement` | Expected: when there is no disaster, DGPA only shows "無停班停課訊息" |
+| "Tomorrow" is `off` with `status: not_announced` during the day | Expected: next-day announcements are usually published between 19:00 and 22:00 |
+| Entities become `unavailable` after midnight | Refreshes keep failing and the old data is not from today; make sure HA can reach DGPA |
 
 Enable debug logging:
 
