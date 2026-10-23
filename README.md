@@ -1,4 +1,8 @@
-# Taiwan Work/Class Suspension – Home Assistant Custom Integration
+<p align="center">
+  <img src="icon.png" alt="Taiwan Work and School Suspension Logo" width="140">
+</p>
+
+# Taiwan Work and School Suspension – Home Assistant Custom Integration
 
 English | [繁體中文](README_Chinese.md)
 

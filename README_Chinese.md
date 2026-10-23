@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.png" alt="Taiwan Work and School Suspension Logo" width="140">
+</p>
+
 # 台灣停班停課 – Home Assistant 自訂整合
 
 [English](README.md) | 繁體中文
