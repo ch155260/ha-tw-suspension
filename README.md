@@ -34,7 +34,7 @@ Scrapes the latest announcements from the **Directorate-General of Personnel Adm
 
 1. HACS → top-right "⋮" → **Custom repositories**.
 2. Paste this repository URL and choose category **Integration**.
-3. Search for "台灣停班停課" and download it.
+3. Search for "Taiwan Work and School Suspension" and download it.
 4. Restart Home Assistant.
 
 ### Option 2: Manual
@@ -46,7 +46,7 @@ Scrapes the latest announcements from the **Directorate-General of Personnel Adm
 
 ## Configuration
 
-Go to **Settings → Devices & Services → Add Integration** and search for **台灣停班停課**.
+Go to **Settings → Devices & Services → Add Integration** and search for **Taiwan Work and School Suspension**.
 
 ### Config flow
 

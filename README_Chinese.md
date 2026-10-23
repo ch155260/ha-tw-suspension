@@ -34,7 +34,7 @@
 
 1. HACS → 右上角「⋮」→「自訂儲存庫」。
 2. 貼上本專案的 repo URL，類別選 **Integration**。
-3. 搜尋「台灣停班停課」並下載。
+3. 搜尋「Taiwan Work and School Suspension」並下載。
 4. 重新啟動 Home Assistant。
 
 ### 方式二：手動安裝
@@ -46,7 +46,7 @@
 
 ## 設定
 
-到「**設定 → 裝置與服務 → 新增整合**」搜尋「**台灣停班停課**」。
+到「**設定 → 裝置與服務 → 新增整合**」搜尋「**Taiwan Work and School Suspension**」。
 
 ### 設定流程
 

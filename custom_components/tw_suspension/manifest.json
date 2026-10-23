@@ -1,6 +1,6 @@
 {
   "domain": "tw_suspension",
-  "name": "台灣停班停課",
+  "name": "Taiwan Work and School Suspension",
   "codeowners": [],
   "config_flow": true,
   "documentation": "https://github.com/ch155260/ha-tw-suspension",
