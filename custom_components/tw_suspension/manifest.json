@@ -1,12 +1,17 @@
 {
   "domain": "tw_suspension",
   "name": "Taiwan Work and School Suspension",
-  "codeowners": [],
+  "codeowners": [
+    "@ch155260"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/ch155260/ha-tw-suspension",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ch155260/ha-tw-suspension/issues",
+  "loggers": [
+    "custom_components.tw_suspension"
+  ],
   "requirements": [
     "beautifulsoup4>=4.12.0"
   ],
