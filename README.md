@@ -245,3 +245,9 @@ hacs.json
 ## Disclaimer
 
 This integration only parses the public DGPA web page. Data may be delayed or inaccurate due to layout changes or network issues. **Always rely on official announcements from the DGPA and local governments.**
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
